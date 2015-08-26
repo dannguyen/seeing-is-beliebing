@@ -1,4 +1,6 @@
 .DS_Store
+# ignore fetched pages
+pages/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

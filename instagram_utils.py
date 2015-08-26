@@ -1,4 +1,5 @@
 import requests
+import json
 from datetime import datetime
 INSTAGRAM_DOMAIN = 'https://api.instagram.com'
 MEDIA_PATH = '/v1/media/shortcode/%s'
@@ -20,16 +21,14 @@ def extract_shortcode(weburl):
     else: # just return whatever you got
         return weburl
 
-def get_shortlink_image(weburl, access_token):
+def get_image_from_shortcode(shortcode, access_token):
     """
-    weburl (String):
-        Can be either:
-        - "https://instagram.com/p/6xXvJqwi-k/?taken-by=danwinny"
-        - "6xXvJqwi-k"
+    shortcode (str):
+        A web shortcode for an instagram image, e.g.
+        '6xXvJqwi-k' from "https://instagram.com/p/6xXvJqwi-k"
     returns (dict):
         An object representing an Instagram image
     """
-    shortcode = extract_shortcode(weburl)
     path = MEDIA_PATH % shortcode
     url = INSTAGRAM_DOMAIN + path
     atts = {"access_token": access_token}
@@ -95,3 +94,43 @@ def get_images_near_coordinates(lat, lng, distance_in_meters,
         # end try/else
     # end while
     return images
+
+
+def get_images_near_some_other_image_via_shortcode(shortcode, access_token, seconds_before,
+        seconds_after, dist_m):
+    """
+    An omni-wrapper method
+
+    shortcode (str):
+        A web shortcode for an instagram image, e.g.
+        '6xXvJqwi-k' from "https://instagram.com/p/6xXvJqwi-k"
+    returns (list):
+        A list of images near `image` as extracted from Instagram media search
+    """
+
+    origin_image = get_image_from_shortcode(shortcode, access_token)
+    # attempt to extract location
+    try:
+        lat = origin_image['location']['latitude']
+        lng = origin_image['location']['longitude']
+    except KeyError as e:
+        print("Target image lacks location information")
+        print(json.dumps(origin_image, indent = 2))
+        raise e
+    # extract time as UTC seconds
+    dts = int(origin_image['created_time'])
+
+    nearby_images = get_images_near_coordinates(lat = lat, lng = lng,
+        distance_in_meters = dist_m,
+        min_timestamp = dts - seconds_before,
+        max_timestamp = dts + seconds_after,
+        access_token = access_token
+    )
+
+    # ad-hoc, add a label to the origin_image as found by the shortcode
+    for img in nearby_images:
+        if img['id'] == origin_image['id']:
+            img['is_origin'] = True
+            break
+
+    return nearby_images
