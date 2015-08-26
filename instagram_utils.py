@@ -47,7 +47,7 @@ def get_images_near_coordinates(lat, lng, distance_in_meters,
     more info:
     https://instagram.com/developer/endpoints/media/#get_media_search
     """
-    images = []
+    images_dict = {}
     ix = 0
     atts = {
         'access_token': access_token,
@@ -63,7 +63,7 @@ def get_images_near_coordinates(lat, lng, distance_in_meters,
         print("%s loop; from %s to %s:\t%s images total" % (ix,
                 datetime.fromtimestamp(atts['min_timestamp']),
                 datetime.fromtimestamp(atts['max_timestamp']),
-                len(images)))
+                len(images_dict)))
         try:
             ix += 1
             resp = requests.get(base_url, params = atts).json()
@@ -76,7 +76,9 @@ def get_images_near_coordinates(lat, lng, distance_in_meters,
             break
         else:
             if new_images:
-                images.extend(new_images)
+                # i'm sure there's a better way to prevent dupes...
+                for img in new_images:
+                    images_dict[img['id']] = img
                 # get new max timestamp from oldest image in the latest batch
                 #  and subtract one second
                 oldest_ts = int(new_images[-1]['created_time']) - 1
@@ -93,11 +95,11 @@ def get_images_near_coordinates(lat, lng, distance_in_meters,
                 break # out of while loop
         # end try/else
     # end while
-    return images
+    return list(images_dict.values())
 
 
-def get_images_near_some_other_image_via_shortcode(shortcode, access_token, seconds_before,
-        seconds_after, dist_m):
+def get_images_near_some_other_image_via_shortcode(shortcode, access_token,
+    seconds_before, seconds_after, dist_m):
     """
     An omni-wrapper method
 
@@ -113,7 +115,7 @@ def get_images_near_some_other_image_via_shortcode(shortcode, access_token, seco
     try:
         lat = origin_image['location']['latitude']
         lng = origin_image['location']['longitude']
-    except KeyError as e:
+    except (KeyError, TypeError) as e:
         print("Target image lacks location information")
         print(json.dumps(origin_image, indent = 2))
         raise e

@@ -1,13 +1,15 @@
+from datetime import datetime
 from instagram_utils import extract_shortcode, get_images_near_some_other_image_via_shortcode
 from os import environ, makedirs
 from os.path import join
+from shutil import copytree
 import argparse
 import json
 
 DEFAULT_TOKEN = environ['INSTAGRAM_TOKEN']
 TOKENHELPMSG = "Default is %s" % DEFAULT_TOKEN if DEFAULT_TOKEN else "(no default set)"
-DEFAULT_BEFORE_MIN = 20
-DEFAULT_AFTER_MIN = 20
+DEFAULT_BEFORE_MIN = 30
+DEFAULT_AFTER_MIN = 240
 DEFAULT_DISTANCE_M = 500
 
 
@@ -38,7 +40,7 @@ if __name__ == '__main__':
     parser.add_argument("--minutes-before", '-b', default = DEFAULT_BEFORE_MIN,
         type = int,
         help = "Limit search to photos X minutes-or-less before target photo's timestamp. Default is %s" % DEFAULT_BEFORE_MIN)
-    parser.add_argument("--minutes-after", '-a', default = DEFAULT_BEFORE_MIN,
+    parser.add_argument("--minutes-after", '-a', default = DEFAULT_AFTER_MIN,
         type = int,
         help = "Limit search to photos X minutes-or-less after target photo's timestamp. Default is %s" % DEFAULT_AFTER_MIN)
     parser.add_argument("--distance-in-meters", '-d', default = DEFAULT_DISTANCE_M,
@@ -49,16 +51,12 @@ if __name__ == '__main__':
     shortcode = extract_shortcode(args.shortcode[0])
     print("Fetching images near %s" % shortcode)
     nearby_images = beliebe(shortcode, args)
-    ppath = "./pages/" + shortcode
+    pdir = "./pages/" + shortcode + '--' + datetime.now().strftime("%Y-%m-%d_%H%M%S")
     # save into directory
-    paths = {
-        'data': join(ppath, 'data'),
-        'css': join(ppath, 'css'),
-        'js': join(ppath, 'js')
-    }
-    for p in paths.values():
-        makedirs(p, exist_ok = True)
-    with open(join(paths['data'], 'images.json'), 'w') as fd:
+    copytree('./template', pdir)
+    datadir = join(pdir, 'data')
+    makedirs(datadir)
+    with open(join(datadir, 'images.json'), 'w') as fd:
         json.dump(nearby_images, fd, indent = 2)
 
     print("""
@@ -67,4 +65,4 @@ if __name__ == '__main__':
 
     In your browser, visit:
          http://localhost:8000/{page_path}
-""".format(page_path = ppath[2:]))
+""".format(page_path = pdir[2:]))
